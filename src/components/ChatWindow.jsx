@@ -33,6 +33,7 @@ export default function ChatWindow({ friend, onBack }) {
   const [editContent, setEditContent] = useState('');
   const [hoveredMsgId, setHoveredMsgId] = useState(null);
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState(null);
+  const [openMenuMsgId, setOpenMenuMsgId] = useState(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const editInputRef = useRef(null);
@@ -389,7 +390,10 @@ export default function ChatWindow({ friend, onBack }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-[#1a1d27] min-w-0" onClick={() => setReactionPickerMsgId(null)}>
+    <div className="flex-1 flex flex-col bg-[#1a1d27] min-w-0" onClick={() => {
+      setReactionPickerMsgId(null);
+      setOpenMenuMsgId(null);
+    }}>
       {/* Header */}
       <div className="bg-[#1e2330] border-b border-slate-700/50 px-4 md:px-6 py-4 flex items-center gap-3 flex-shrink-0">
         {/* Back button — mobile only */}
@@ -507,7 +511,10 @@ export default function ChatWindow({ friend, onBack }) {
                       {/* React */}
                       <div className="relative">
                         <button
-                          onClick={() => setReactionPickerMsgId((prev) => prev === msg.id ? null : msg.id)}
+                          onClick={() => {
+                            setReactionPickerMsgId((prev) => prev === msg.id ? null : msg.id);
+                            setOpenMenuMsgId(null);
+                          }}
                           className="bg-[#252d3d] hover:bg-slate-600 text-slate-300 rounded-lg px-1.5 py-1 text-xs transition-colors"
                           title="React"
                         >
@@ -528,25 +535,57 @@ export default function ChatWindow({ friend, onBack }) {
                         )}
                       </div>
 
-                      {/* Edit / Delete (own messages only, text only) */}
-                      {isOwn && !msg.file_url && (
+                      {/* Triple dot menu */}
+                      <div className="relative">
                         <button
-                          onClick={() => startEdit(msg)}
+                          onClick={() => setOpenMenuMsgId((prev) => prev === msg.id ? null : msg.id)}
                           className="bg-[#252d3d] hover:bg-slate-600 text-slate-300 rounded-lg px-1.5 py-1 text-xs transition-colors"
-                          title="Edit"
+                          title="More options"
                         >
-                          ✏️
+                          ⋯
                         </button>
-                      )}
-                      {isOwn && (
-                        <button
-                          onClick={() => deleteMessage(msg.id)}
-                          className="bg-[#252d3d] hover:bg-red-800 text-slate-300 rounded-lg px-1.5 py-1 text-xs transition-colors"
-                          title="Delete"
-                        >
-                          🗑️
-                        </button>
-                      )}
+                        {openMenuMsgId === msg.id && (
+                          <div className={`absolute bottom-8 ${isOwn ? 'right-0' : 'left-0'} bg-[#1e2330] border border-slate-700 rounded-xl shadow-xl z-20 min-w-max`}>
+                            {/* Download media (KingKai only) */}
+                            {isKingKai && msg.file_url && (
+                              <button
+                                onClick={() => {
+                                  const ext = msg.file_url.split('.').pop();
+                                  autoDownload(msg.file_url, `${msg.sender_username}_${msg.id}.${ext}`);
+                                  setOpenMenuMsgId(null);
+                                }}
+                                className="block w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 first:rounded-t-xl transition-colors"
+                              >
+                                ⬇️ Download
+                              </button>
+                            )}
+                            {/* Edit (own text messages only) */}
+                            {isOwn && !msg.file_url && (
+                              <button
+                                onClick={() => {
+                                  startEdit(msg);
+                                  setOpenMenuMsgId(null);
+                                }}
+                                className="block w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors"
+                              >
+                                ✏️ Edit
+                              </button>
+                            )}
+                            {/* Delete (own messages only) */}
+                            {isOwn && (
+                              <button
+                                onClick={() => {
+                                  deleteMessage(msg.id);
+                                  setOpenMenuMsgId(null);
+                                }}
+                                className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 last:rounded-b-xl transition-colors"
+                              >
+                                🗑️ Delete
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

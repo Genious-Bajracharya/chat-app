@@ -17,6 +17,7 @@ export function connectSocket(token) {
   console.log('Token present:', !!token);
 
   socket = io(apiUrl, {
+    path: '/api/socket.io/',
     auth: { token },
     transports: ['websocket', 'polling'],
     reconnection: true,

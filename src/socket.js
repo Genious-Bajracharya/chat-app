@@ -13,6 +13,9 @@ export function connectSocket(token) {
   }
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  console.log('Connecting to Socket.IO at:', apiUrl);
+  console.log('Token present:', !!token);
+
   socket = io(apiUrl, {
     auth: { token },
     transports: ['websocket', 'polling'],
@@ -28,6 +31,7 @@ export function connectSocket(token) {
 
   socket.on('connect_error', (err) => {
     console.error('Socket connection error:', err.message);
+    console.error('Full error:', err);
   });
 
   socket.on('disconnect', (reason) => {

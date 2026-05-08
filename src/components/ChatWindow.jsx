@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { getSocket } from '../socket';
 import api from '../api';
 import { encryptMessage, decryptMessage, getStoredKeyPair } from '../crypto';
+import { requestNotificationPermission, showMessageNotification } from '../notifications';
+import { enableScreenshotProtection, detectScreenshot, showScreenshotWarning } from '../screenshotProtection';
 import CameraModal from './CameraModal';
 import VoiceRecorder from './VoiceRecorder';
 
@@ -34,6 +36,13 @@ export default function ChatWindow({ friend, onBack }) {
   const [hoveredMsgId, setHoveredMsgId] = useState(null);
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState(null);
   const [openMenuMsgId, setOpenMenuMsgId] = useState(null);
+  const [reportModal, setReportModal] = useState({ isOpen: false, userId: null, username: null });
+  const [reportReason, setReportReason] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [checkingBlock, setCheckingBlock] = useState(false);
+  const [blockingUser, setBlockingUser] = useState(false);
+  const [openHeaderMenu, setOpenHeaderMenu] = useState(false);
   const longPressTimeoutRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -56,6 +65,43 @@ export default function ChatWindow({ friend, onBack }) {
     const plain = await decryptMessage(msg.content, theirPublicKey, kp.secretKey);
     return { ...msg, content: plain };
   }, [user?.id, friend?.public_key]);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
+
+  // Enable screenshot protection
+  useEffect(() => {
+    const messagesArea = document.querySelector('[data-messages-area]');
+    if (messagesArea) {
+      enableScreenshotProtection(messagesArea);
+    }
+
+    // Detect screenshot attempts
+    detectScreenshot((screenshotAttempted) => {
+      if (screenshotAttempted) {
+        showScreenshotWarning();
+      }
+    });
+  }, []);
+
+  // Check if friend is blocked
+  useEffect(() => {
+    if (!friend) return;
+    const checkBlockStatus = async () => {
+      setCheckingBlock(true);
+      try {
+        const response = await api.get(`/users/${friend.id}/is-blocked`);
+        setIsBlocked(response.data.isBlocked);
+      } catch (err) {
+        console.error('Failed to check block status:', err);
+      } finally {
+        setCheckingBlock(false);
+      }
+    };
+    checkBlockStatus();
+  }, [friend?.id]);
 
   useEffect(() => {
     if (!friend) return;
@@ -103,6 +149,14 @@ export default function ChatWindow({ friend, onBack }) {
           if (prev.some((m) => m.id === decrypted.id)) return prev;
           return [...prev, { ...decrypted, reactions: message.reactions || {} }];
         });
+
+        // Show notification for incoming messages from friend
+        if (message.sender_id === friend?.id && message.receiver_id === user?.id) {
+          const preview = message.file_url
+            ? `📎 ${message.file_type === 'image' ? '🖼️ Photo' : message.fileType === 'audio' ? '🎵 Audio' : '🎥 Video'}`
+            : decrypted.content?.substring(0, 50) || 'New message';
+          showMessageNotification(message.sender_username || friend.username, preview);
+        }
 
         // Auto-mark as read for KingKai when receiving messages
         if (isKingKai && message.receiver_id === user?.id && !message.read_at) {
@@ -269,6 +323,43 @@ export default function ChatWindow({ friend, onBack }) {
     setReactionPickerMsgId(null);
   };
 
+  const submitReport = async () => {
+    if (!reportReason.trim()) return;
+    setReportSubmitting(true);
+    try {
+      await api.post(`/admin/report/${reportModal.userId}`, { reason: reportReason.trim() });
+      setReportModal({ isOpen: false, userId: null, username: null });
+      setReportReason('');
+      setError('User reported successfully.');
+      setTimeout(() => setError(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to report user.');
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
+  const toggleBlockUser = async () => {
+    if (!friend) return;
+    setBlockingUser(true);
+    try {
+      if (isBlocked) {
+        await api.post(`/users/${friend.id}/unblock`);
+        setIsBlocked(false);
+        setError('User unblocked.');
+      } else {
+        await api.post(`/users/${friend.id}/block`);
+        setIsBlocked(true);
+        setError('User blocked.');
+      }
+      setTimeout(() => setError(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update block status.');
+    } finally {
+      setBlockingUser(false);
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
@@ -324,7 +415,7 @@ export default function ChatWindow({ friend, onBack }) {
         <video
           src={msg.file_url}
           controls
-          controlsList="nodownload"
+          controlsList={isKingKai ? '' : 'nodownload'}
           className="max-w-xs rounded-xl"
           onContextMenu={handleMediaContextMenu}
           onTouchStart={handleMediaTouchStart}
@@ -337,9 +428,9 @@ export default function ChatWindow({ friend, onBack }) {
         <audio
           src={msg.file_url}
           controls
-          controlsList="nodownload"
+          controlsList={isKingKai ? '' : 'nodownload'}
           className="max-w-xs"
-          onContextMenu={preventSave}
+          onContextMenu={isKingKai ? undefined : preventSave}
         />
       );
     }
@@ -394,6 +485,7 @@ export default function ChatWindow({ friend, onBack }) {
     <div className="flex-1 flex flex-col bg-[#1a1d27] min-w-0" onClick={() => {
       setReactionPickerMsgId(null);
       setOpenMenuMsgId(null);
+      setOpenHeaderMenu(false);
     }}>
       {/* Header */}
       <div className="bg-[#1e2330] border-b border-slate-700/50 px-4 md:px-6 py-4 flex items-center gap-3 flex-shrink-0">
@@ -412,16 +504,59 @@ export default function ChatWindow({ friend, onBack }) {
           </div>
           <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-[#1e2330] rounded-full ${friend.is_online ? 'bg-green-400' : 'bg-slate-500'}`} />
         </div>
-        <div>
-          <h2 className="text-white font-semibold">{friend.username}</h2>
-          <p className={`text-xs ${friend.is_online ? 'text-green-400' : 'text-slate-400'}`}>
-            {friend.is_online ? 'Online' : 'Offline'}
-          </p>
+        <div className="flex-1 flex items-center justify-between">
+          <div>
+            <h2 className="text-white font-semibold">{friend.username}</h2>
+            <p className={`text-xs ${friend.is_online ? 'text-green-400' : 'text-slate-400'}`}>
+              {friend.is_online ? 'Online' : 'Offline'}
+            </p>
+          </div>
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenHeaderMenu(!openHeaderMenu);
+              }}
+              className="text-slate-400 hover:text-white transition-colors p-1"
+              title="More options"
+            >
+              ⋯
+            </button>
+            {openHeaderMenu && (
+              <div className="absolute right-0 top-8 bg-[#252d3d] border border-slate-600 rounded-lg shadow-lg z-20 min-w-max overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setReportModal({ isOpen: true, userId: friend.id, username: friend.username });
+                    setOpenHeaderMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-xs text-orange-400 hover:bg-orange-500/10 transition-colors border-b border-slate-600"
+                >
+                  Report
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleBlockUser();
+                    setOpenHeaderMenu(false);
+                  }}
+                  disabled={blockingUser || checkingBlock}
+                  className={`block w-full text-left px-4 py-2 text-xs transition-colors ${
+                    isBlocked
+                      ? 'text-green-400 hover:bg-green-500/10'
+                      : 'text-red-400 hover:bg-red-500/10'
+                  }`}
+                >
+                  {blockingUser ? '...' : isBlocked ? 'Unblock' : 'Block'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-4 space-y-1">
+      <div data-messages-area className="flex-1 overflow-y-auto scrollbar-thin px-6 py-4 space-y-1">
         {loading && <div className="flex items-center justify-center h-full"><p className="text-slate-400 text-sm">Loading messages...</p></div>}
         {error && <div className="text-center"><p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 inline-block">{error}</p></div>}
         {!loading && !error && messages.length === 0 && (
@@ -729,6 +864,49 @@ export default function ChatWindow({ friend, onBack }) {
 
       {showCamera && (
         <CameraModal onClose={() => setShowCamera(false)} onSend={handleCameraCapture} recipientId={friend.id} />
+      )}
+
+      {/* Report User Modal */}
+      {reportModal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1e2330] border border-slate-600 rounded-lg max-w-md w-full">
+            <div className="px-6 py-4 border-b border-slate-600">
+              <h3 className="text-white font-semibold text-lg">Report User</h3>
+              <p className="text-slate-400 text-sm mt-1">Reporting: <span className="text-indigo-400 font-medium">{reportModal.username}</span></p>
+            </div>
+            <div className="px-6 py-4">
+              <label className="block text-slate-300 text-sm font-medium mb-2">Reason for report</label>
+              <textarea
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                placeholder="Describe why you're reporting this user..."
+                maxLength={500}
+                className="w-full bg-[#252d3d] text-white placeholder-slate-500 border border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm resize-none"
+                rows={4}
+              />
+              <p className="text-slate-500 text-xs mt-1">{reportReason.length}/500</p>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-600 flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setReportModal({ isOpen: false, userId: null, username: null });
+                  setReportReason('');
+                }}
+                disabled={reportSubmitting}
+                className="px-4 py-2 text-slate-300 hover:bg-slate-700 rounded-lg transition-colors text-sm disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitReport}
+                disabled={!reportReason.trim() || reportSubmitting}
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:bg-orange-800 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
+              >
+                {reportSubmitting ? 'Submitting...' : 'Submit Report'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

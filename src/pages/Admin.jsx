@@ -4,28 +4,66 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../api';
 
 export default function Admin() {
+  const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState([]);
+  const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [impersonatingId, setImpersonatingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [suspendingId, setSuspendingId] = useState(null);
   const [confirmSuspendId, setConfirmSuspendId] = useState(null);
+  const [resolvingReportId, setResolvingReportId] = useState(null);
+  const [confirmResolveReport, setConfirmResolveReport] = useState(null);
   const { user, logout, impersonate } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (activeTab === 'users') {
+      fetchUsers();
+    } else {
+      fetchReports();
+    }
+  }, [activeTab]);
 
   const fetchUsers = async () => {
     try {
+      setLoading(true);
       const response = await api.get('/admin/users');
       setUsers(response.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load users.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/admin/reports');
+      setReports(response.data);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load reports.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResolveReport = async (reportId, action) => {
+    setResolvingReportId(reportId);
+    try {
+      await api.post(`/admin/reports/${reportId}/resolve`, { action });
+      setReports((prev) =>
+        prev.map((r) =>
+          r.id === reportId ? { ...r, status: 'resolved' } : r
+        )
+      );
+      setConfirmResolveReport(null);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to resolve report.');
+    } finally {
+      setResolvingReportId(null);
     }
   };
 
@@ -122,7 +160,32 @@ export default function Admin() {
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Tabs */}
+        <div className="flex gap-4 mb-6 border-b border-slate-700/50">
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === 'users'
+                ? 'border-indigo-500 text-indigo-400'
+                : 'border-transparent text-slate-400 hover:text-slate-300'
+            }`}
+          >
+            Users ({users.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === 'reports'
+                ? 'border-indigo-500 text-indigo-400'
+                : 'border-transparent text-slate-400 hover:text-slate-300'
+            }`}
+          >
+            Reports ({reports.filter((r) => r.status === 'pending').length})
+          </button>
+        </div>
+
         {/* Stats cards */}
+        {activeTab === 'users' && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <div className="bg-[#1e2330] rounded-xl p-5 border border-slate-700/50">
             <p className="text-slate-400 text-sm">Total Users</p>
@@ -141,8 +204,10 @@ export default function Admin() {
             </p>
           </div>
         </div>
+        )}
 
         {/* Users table */}
+        {activeTab === 'users' && (
         <div className="bg-[#1e2330] rounded-2xl border border-slate-700/50 overflow-hidden">
           <div className="px-6 py-5 border-b border-slate-700/50 flex items-center justify-between gap-4 flex-wrap">
             <h2 className="text-lg font-semibold text-white">Registered Users</h2>
@@ -309,6 +374,120 @@ export default function Admin() {
             </div>
           )}
         </div>
+        )}
+
+        {/* Reports view */}
+        {activeTab === 'reports' && (
+        <div className="bg-[#1e2330] rounded-2xl border border-slate-700/50 overflow-hidden">
+          <div className="px-6 py-5 border-b border-slate-700/50">
+            <h2 className="text-lg font-semibold text-white">User Reports</h2>
+            <p className="text-slate-400 text-sm mt-1">{reports.filter((r) => r.status === 'pending').length} pending · {reports.filter((r) => r.status === 'resolved').length} resolved</p>
+          </div>
+
+          {error && (
+            <div className="mx-6 mt-4 bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="text-slate-400">Loading reports...</div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-700/50">
+                    <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-3">
+                      Reported User
+                    </th>
+                    <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-3">
+                      Reporter
+                    </th>
+                    <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-3">
+                      Reason
+                    </th>
+                    <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-3">
+                      Status
+                    </th>
+                    <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-3">
+                      Reported At
+                    </th>
+                    <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-3">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/30">
+                  {reports.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center text-slate-400 py-12">
+                        No reports yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    reports.map((r) => (
+                      <tr
+                        key={r.id}
+                        className={`hover:bg-slate-700/10 transition-colors ${r.status === 'resolved' ? 'opacity-60' : ''}`}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                              {r.reported_username[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-white font-medium text-sm">{r.reported_username}</p>
+                              <p className="text-slate-500 text-xs">{r.reported_email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div>
+                            <p className="text-slate-300 text-sm">{r.reporter_username}</p>
+                            <p className="text-slate-500 text-xs">{r.reporter_email}</p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-slate-300 text-sm max-w-xs truncate" title={r.reason}>{r.reason}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              r.status === 'pending'
+                                ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                                : 'bg-green-500/20 text-green-300 border border-green-500/30'
+                            }`}
+                          >
+                            {r.status === 'pending' ? '🔔 Pending' : '✓ Resolved'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-400 text-sm">
+                          {formatDateTime(r.created_at)}
+                        </td>
+                        <td className="px-6 py-4">
+                          {r.status === 'pending' ? (
+                            <button
+                              onClick={() => setConfirmResolveReport(r.id)}
+                              disabled={resolvingReportId === r.id}
+                              className="bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 hover:text-orange-300 text-xs font-medium px-2 py-1 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {resolvingReportId === r.id ? '...' : 'Review'}
+                            </button>
+                          ) : (
+                            <span className="text-slate-500 text-xs">Closed by {r.admin_username}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        )}
 
         {/* Suspension confirmation modal */}
         {confirmSuspendId && (
@@ -351,6 +530,70 @@ export default function Admin() {
                   }`}
                 >
                   {suspendingId === confirmSuspendId ? 'Please wait...' : users.find((u) => u.id === confirmSuspendId)?.status === 'suspended' ? 'Unsuspend' : 'Suspend'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Report resolution modal */}
+        {confirmResolveReport && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmResolveReport(null)} />
+            <div className="relative bg-[#1e2330] rounded-2xl shadow-2xl border border-slate-700/50 w-full max-w-sm">
+              <div className="px-6 py-5 border-b border-slate-700/50">
+                <h3 className="text-white font-semibold text-lg">Resolve Report</h3>
+              </div>
+              <div className="px-6 py-4 space-y-4">
+                {(() => {
+                  const report = reports.find((r) => r.id === confirmResolveReport);
+                  return (
+                    <>
+                      <div>
+                        <p className="text-slate-400 text-xs uppercase tracking-wide font-medium mb-1">Reported User</p>
+                        <p className="text-white font-medium">{report?.reported_username}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-xs uppercase tracking-wide font-medium mb-1">Reason</p>
+                        <p className="text-slate-300 text-sm">{report?.reason}</p>
+                      </div>
+                      <div className="bg-slate-700/30 border border-slate-600 rounded-lg p-3">
+                        <p className="text-slate-300 text-sm">
+                          Choose an action to resolve this report:
+                        </p>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+              <div className="px-6 py-4 border-t border-slate-700/50 flex gap-3 justify-end">
+                <button
+                  onClick={() => setConfirmResolveReport(null)}
+                  className="px-4 py-2 text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-700/30 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleResolveReport(confirmResolveReport, 'dismiss')}
+                  disabled={resolvingReportId === confirmResolveReport}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {resolvingReportId === confirmResolveReport ? '...' : 'Dismiss'}
+                </button>
+                <button
+                  onClick={() => {
+                    const report = reports.find((r) => r.id === confirmResolveReport);
+                    if (report) {
+                      // First suspend the user
+                      handleSuspend({ id: report.reported_user_id });
+                      // Then resolve the report
+                      handleResolveReport(confirmResolveReport, 'suspend');
+                    }
+                  }}
+                  disabled={resolvingReportId === confirmResolveReport}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {resolvingReportId === confirmResolveReport ? '...' : 'Suspend & Resolve'}
                 </button>
               </div>
             </div>

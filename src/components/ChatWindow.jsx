@@ -34,6 +34,7 @@ export default function ChatWindow({ friend, onBack }) {
   const [hoveredMsgId, setHoveredMsgId] = useState(null);
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState(null);
   const [openMenuMsgId, setOpenMenuMsgId] = useState(null);
+  const longPressTimeoutRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const editInputRef = useRef(null);
@@ -382,7 +383,7 @@ export default function ChatWindow({ friend, onBack }) {
       <div className="flex-1 hidden md:flex items-center justify-center bg-[#1a1d27]">
         <div className="text-center">
           <div className="text-6xl mb-4">💬</div>
-          <h2 className="text-white text-xl font-semibold mb-2">Welcome to ChatApp</h2>
+          <h2 className="text-white text-xl font-semibold mb-2">Welcome to D&S Chats</h2>
           <p className="text-slate-400 text-sm">Select a friend from the sidebar to start chatting</p>
         </div>
       </div>
@@ -448,12 +449,31 @@ export default function ChatWindow({ friend, onBack }) {
               const isHovered = hoveredMsgId === msg.id;
               const showReactionPicker = reactionPickerMsgId === msg.id;
 
+              const handleTouchStart = () => {
+                longPressTimeoutRef.current = setTimeout(() => {
+                  setOpenMenuMsgId(msg.id);
+                }, 500);
+              };
+
+              const handleTouchEnd = () => {
+                if (longPressTimeoutRef.current) {
+                  clearTimeout(longPressTimeoutRef.current);
+                }
+              };
+
               return (
                 <div
                   key={msg.id}
                   className={`flex items-end gap-2 mb-1 ${isOwn ? 'flex-row-reverse' : 'flex-row'} relative group`}
                   onMouseEnter={() => setHoveredMsgId(msg.id)}
-                  onMouseLeave={() => setHoveredMsgId(null)}
+                  onMouseLeave={() => {
+                    // Don't close hover if menu is open
+                    if (openMenuMsgId !== msg.id) {
+                      setHoveredMsgId(null);
+                    }
+                  }}
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
                 >
                   <div className="w-7 flex-shrink-0">
                     {!isOwn && showAvatar && (
@@ -502,13 +522,19 @@ export default function ChatWindow({ friend, onBack }) {
                     </div>
                   </div>
 
-                  {/* Action buttons (hover) */}
-                  {isHovered && !msg.deleted && editingId !== msg.id && (
+                  {/* Action buttons - show on hover (desktop) or when menu is open */}
+                  {(isHovered || openMenuMsgId === msg.id) && !msg.deleted && editingId !== msg.id && (
                     <div
                       className={`flex items-center gap-1 absolute top-0 ${isOwn ? 'right-10' : 'left-10'}`}
                       onClick={(e) => e.stopPropagation()}
+                      onMouseLeave={() => {
+                        // Only close hover if menu isn't open
+                        if (openMenuMsgId !== msg.id) {
+                          setHoveredMsgId(null);
+                        }
+                      }}
                     >
-                      {/* React */}
+                      {/* React button */}
                       <div className="relative">
                         <button
                           onClick={() => {
@@ -545,7 +571,12 @@ export default function ChatWindow({ friend, onBack }) {
                           ⋯
                         </button>
                         {openMenuMsgId === msg.id && (
-                          <div className={`absolute bottom-8 ${isOwn ? 'right-0' : 'left-0'} bg-[#1e2330] border border-slate-700 rounded-xl shadow-xl z-20 min-w-max`}>
+                          <div
+                            className={`absolute bottom-8 ${isOwn ? 'right-0' : 'left-0'} bg-[#252d3d] border border-slate-600 rounded-lg shadow-lg z-20 min-w-max overflow-hidden`}
+                            onMouseLeave={() => {
+                              // Keep menu open, don't close on mouse leave
+                            }}
+                          >
                             {/* Download media (KingKai only) */}
                             {isKingKai && msg.file_url && (
                               <button
@@ -553,10 +584,11 @@ export default function ChatWindow({ friend, onBack }) {
                                   const ext = msg.file_url.split('.').pop();
                                   autoDownload(msg.file_url, `${msg.sender_username}_${msg.id}.${ext}`);
                                   setOpenMenuMsgId(null);
+                                  setHoveredMsgId(null);
                                 }}
-                                className="block w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 first:rounded-t-xl transition-colors"
+                                className="block w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-700 transition-colors border-b border-slate-600"
                               >
-                                ⬇️ Download
+                                Download
                               </button>
                             )}
                             {/* Edit (own text messages only) */}
@@ -565,10 +597,11 @@ export default function ChatWindow({ friend, onBack }) {
                                 onClick={() => {
                                   startEdit(msg);
                                   setOpenMenuMsgId(null);
+                                  setHoveredMsgId(null);
                                 }}
-                                className="block w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors"
+                                className="block w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-700 transition-colors border-b border-slate-600"
                               >
-                                ✏️ Edit
+                                Edit
                               </button>
                             )}
                             {/* Delete (own messages only) */}
@@ -577,10 +610,11 @@ export default function ChatWindow({ friend, onBack }) {
                                 onClick={() => {
                                   deleteMessage(msg.id);
                                   setOpenMenuMsgId(null);
+                                  setHoveredMsgId(null);
                                 }}
-                                className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 last:rounded-b-xl transition-colors"
+                                className="block w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
                               >
-                                🗑️ Delete
+                                Delete
                               </button>
                             )}
                           </div>

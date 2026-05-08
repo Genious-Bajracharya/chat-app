@@ -19,7 +19,7 @@ export default function Sidebar({
       <div className="px-5 py-4 border-b border-slate-700/50">
         <div className="flex items-center gap-2 mb-4">
           <span className="text-2xl">💬</span>
-          <h1 className="text-white font-bold text-lg">ChatApp</h1>
+          <h1 className="text-white font-bold text-lg">D&S Chats</h1>
         </div>
 
         {/* Current user info */}

@@ -42,13 +42,13 @@ export default function Register() {
         {/* Logo / Header */}
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">💬</div>
-          <h1 className="text-3xl font-bold text-white">ChatApp</h1>
+          <h1 className="text-3xl font-bold text-white">D&S Chats</h1>
           <p className="text-slate-400 mt-2">Create your account</p>
         </div>
 
         {/* Card */}
         <div className="bg-[#1e2330] rounded-2xl shadow-xl p-8 border border-slate-700/50">
-          <h2 className="text-xl font-semibold text-white mb-6">Join ChatApp</h2>
+          <h2 className="text-xl font-semibold text-white mb-6">Join D&S Chats</h2>
 
           {error && (
             <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg mb-5 text-sm">

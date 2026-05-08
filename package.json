@@ -1,7 +1,7 @@
 {
   "name": "chatapp-client",
   "version": "1.0.0",
-  "description": "ChatApp frontend client",
+  "description": "D&S Chats frontend client",
   "type": "module",
   "scripts": {
     "dev": "vite",

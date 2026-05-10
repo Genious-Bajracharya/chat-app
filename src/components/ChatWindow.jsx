@@ -4,7 +4,6 @@ import { getSocket } from '../socket';
 import api from '../api';
 import { encryptMessage, decryptMessage, getStoredKeyPair } from '../crypto';
 import { requestNotificationPermission, showMessageNotification } from '../notifications';
-import { enableScreenshotProtection, detectScreenshot, showScreenshotWarning } from '../screenshotProtection';
 import CameraModal from './CameraModal';
 import VoiceRecorder from './VoiceRecorder';
 
@@ -71,20 +70,6 @@ export default function ChatWindow({ friend, onBack }) {
     requestNotificationPermission();
   }, []);
 
-  // Enable screenshot protection
-  useEffect(() => {
-    const messagesArea = document.querySelector('[data-messages-area]');
-    if (messagesArea) {
-      enableScreenshotProtection(messagesArea);
-    }
-
-    // Detect screenshot attempts
-    detectScreenshot((screenshotAttempted) => {
-      if (screenshotAttempted) {
-        showScreenshotWarning();
-      }
-    });
-  }, []);
 
   // Check if friend is blocked
   useEffect(() => {
@@ -556,7 +541,7 @@ export default function ChatWindow({ friend, onBack }) {
       </div>
 
       {/* Messages area */}
-      <div data-messages-area className="flex-1 overflow-y-auto scrollbar-thin px-6 py-4 space-y-1">
+      <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-4 space-y-1">
         {loading && <div className="flex items-center justify-center h-full"><p className="text-slate-400 text-sm">Loading messages...</p></div>}
         {error && <div className="text-center"><p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 inline-block">{error}</p></div>}
         {!loading && !error && messages.length === 0 && (

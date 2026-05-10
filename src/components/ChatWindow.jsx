@@ -474,7 +474,7 @@ export default function ChatWindow({ friend, onBack }) {
       setOpenHeaderMenu(false);
     }}>
       {/* Header */}
-      <div className="bg-[#1e2330] border-b border-slate-700/50 px-4 md:px-6 py-4 flex items-center gap-3 flex-shrink-0">
+      <div className="sticky top-0 z-10 bg-[#1e2330] border-b border-slate-700/50 px-4 md:px-6 py-4 flex items-center gap-3 flex-shrink-0">
         {/* Back button — mobile only */}
         <button
           onClick={onBack}

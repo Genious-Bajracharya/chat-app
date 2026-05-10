@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import DSLogo from '../components/DSLogo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -33,9 +34,9 @@ export default function Login() {
     <div className="min-h-screen bg-[#1a1d27] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         {/* Logo / Header */}
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-3">💬</div>
-          <h1 className="text-3xl font-bold text-white">D&S Chats</h1>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <DSLogo size={56} />
+          <h1 className="text-3xl font-bold text-white mt-4">D&S Chats</h1>
           <p className="text-slate-400 mt-2">Connect with your friends</p>
         </div>
 

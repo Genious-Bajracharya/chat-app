@@ -65,8 +65,8 @@ export function AuthProvider({ children }) {
     return userData;
   }, [setupEncryption]);
 
-  const register = useCallback(async (username, email, password) => {
-    const response = await api.post('/auth/register', { username, email, password });
+  const register = useCallback(async (username, email, password, team) => {
+    const response = await api.post('/auth/register', { username, email, password, team });
     const { token, user: userData } = response.data;
 
     localStorage.setItem('token', token);

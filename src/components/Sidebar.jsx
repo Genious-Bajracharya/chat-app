@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import DSLogo from './DSLogo';
+import ComingSoonModal from './ComingSoonModal';
 
 export default function Sidebar({
   friends,
@@ -12,13 +14,14 @@ export default function Sidebar({
   onLogout
 }) {
   const { user } = useAuth();
+  const [showComingSoon, setShowComingSoon] = useState(false);
 
   return (
     <div className="w-full md:w-72 flex-shrink-0 bg-[#1e2330] flex flex-col border-r border-slate-700/50 h-full">
       {/* App header */}
       <div className="px-5 py-4 border-b border-slate-700/50">
         <div className="flex items-center gap-2 mb-4">
-          <span className="text-2xl">💬</span>
+          <DSLogo size={32} />
           <h1 className="text-white font-bold text-lg">D&S Chats</h1>
         </div>
 
@@ -62,6 +65,15 @@ export default function Sidebar({
               {pendingReceived > 9 ? '9+' : pendingReceived}
             </span>
           )}
+        </button>
+
+        <button
+          onClick={() => setShowComingSoon(true)}
+          className="flex-1 flex items-center justify-center gap-1.5 bg-[#252d3d] hover:bg-[#2d3748] text-slate-300 hover:text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+          title="View upcoming features"
+        >
+          <span>🚀</span>
+          Coming Soon
         </button>
       </div>
 
@@ -137,6 +149,9 @@ export default function Sidebar({
           Logout
         </button>
       </div>
+
+      {/* Coming Soon Modal */}
+      <ComingSoonModal isOpen={showComingSoon} onClose={() => setShowComingSoon(false)} />
     </div>
   );
 }

@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import DSLogo from '../components/DSLogo';
 
 export default function Register() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [team, setTeam] = useState('D');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
@@ -27,7 +29,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      await register(username, email, password);
+      await register(username, email, password, team);
       navigate('/chat');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
@@ -40,9 +42,9 @@ export default function Register() {
     <div className="min-h-screen bg-[#1a1d27] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         {/* Logo / Header */}
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-3">💬</div>
-          <h1 className="text-3xl font-bold text-white">D&S Chats</h1>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <DSLogo size={56} />
+          <h1 className="text-3xl font-bold text-white mt-4">D&S Chats</h1>
           <p className="text-slate-400 mt-2">Create your account</p>
         </div>
 
@@ -114,6 +116,36 @@ export default function Register() {
                 placeholder="••••••••"
                 className="w-full bg-[#252d3d] text-white placeholder-slate-500 border border-slate-600 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-3">
+                Choose your Role
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTeam('D')}
+                  className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
+                    team === 'D'
+                      ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
+                      : 'bg-[#252d3d] text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                   D
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTeam('S')}
+                  className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
+                    team === 'S'
+                      ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
+                      : 'bg-[#252d3d] text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                   S
+                </button>
+              </div>
             </div>
 
             <button

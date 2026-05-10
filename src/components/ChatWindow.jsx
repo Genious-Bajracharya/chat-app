@@ -6,6 +6,7 @@ import { encryptMessage, decryptMessage, getStoredKeyPair } from '../crypto';
 import { requestNotificationPermission, showMessageNotification } from '../notifications';
 import CameraModal from './CameraModal';
 import VoiceRecorder from './VoiceRecorder';
+import DSLogo from './DSLogo';
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 
@@ -457,9 +458,9 @@ export default function ChatWindow({ friend, onBack }) {
   if (!friend) {
     return (
       <div className="flex-1 hidden md:flex items-center justify-center bg-[#1a1d27]">
-        <div className="text-center">
-          <div className="text-6xl mb-4">💬</div>
-          <h2 className="text-white text-xl font-semibold mb-2">Welcome to D&S Chats</h2>
+        <div className="text-center flex flex-col items-center">
+          <DSLogo size={80} />
+          <h2 className="text-white text-xl font-semibold mb-2 mt-4">Welcome to D&S Chats</h2>
           <p className="text-slate-400 text-sm">Select a friend from the sidebar to start chatting</p>
         </div>
       </div>

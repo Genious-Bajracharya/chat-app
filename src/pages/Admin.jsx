@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api';
+import DSLogo from '../components/DSLogo';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('users');
@@ -137,7 +138,7 @@ export default function Admin() {
       <header className="bg-[#1e2330] border-b border-slate-700/50 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">💬</span>
+            <DSLogo size={36} />
             <div>
               <h1 className="text-lg font-bold text-white">D&S Chats Admin</h1>
               <p className="text-xs text-slate-400">Control Panel</p>
